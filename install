@@ -1,0 +1,5 @@
+micromamba create --prefix ./env
+micromamba activate ./env
+micromamba install python=3.8 pip ipykernel entrypoints ipykernel
+pip install .
+pip install torchvision anndata scanpy
