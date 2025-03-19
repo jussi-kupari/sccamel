@@ -748,7 +748,7 @@ def LabelGene_Scaling(datax, commongene, mprotogruop, tftable=None, thrs=None, s
         # return df_train_setclpn, dfclpncol, protogruop
 
     
-def MVgene_Scaling(datax,score, commongene, mprotogruop,tftable,thrs,
+def MVgene_Scaling(datax, score, commongene, mprotogruop, tftable, thrs,
                    std_scaling=False, TPTT=10000, sharedMVgenes=None,
                    learninggroup="train"):
     """
@@ -772,7 +772,8 @@ def MVgene_Scaling(datax,score, commongene, mprotogruop,tftable,thrs,
     The resulting data is then used for training or testing based on the input learning group.
      The function returns an updated AnnData object containing the scaled gene expression matrix and metadata.
     """
-
+    import pandas as pd
+    import numpy as np
 
     print("CamelRunning---GenesScaling......")
     dfpfc = pd.DataFrame(datax.X.T, index=datax.var.index, columns=datax.obs.index)
@@ -791,7 +792,11 @@ def MVgene_Scaling(datax,score, commongene, mprotogruop,tftable,thrs,
         scalepfc = dfpfc.astype(float).fillna(0)
         scalepfc = dfpfc.div(dfpfc.std(1), axis=0)
         scalepfc = scalepfc.fillna(0)
-        dfpfc_dev = scalepfc.loc[set(scalepfc.index) & set(sharedMVgenes)].dropna()
+        
+        # FIX: Convert set intersection to list before using as indexer
+        common_genes = list(set(scalepfc.index) & set(sharedMVgenes))
+        dfpfc_dev = scalepfc.loc[common_genes].dropna()
+        
         dfpfc_dev_log = np.log2(dfpfc_dev + 1)
         dfpfc_dev_all = dfpfc_dev_log.T.join(dfpfcclus.T, how="inner").dropna()
         bool1 = mprotogruop != "nan"
@@ -807,7 +812,7 @@ def MVgene_Scaling(datax,score, commongene, mprotogruop,tftable,thrs,
         datax.uns["mclasses_names"] = mclasses_names
         datax.obs["mtrain_index"] = mtrain_index
         refgenelist = np.in1d(datax.var.index, sharedMVgenes)
-        datax.var["RefGeneList"]=refgenelist
+        datax.var["RefGeneList"] = refgenelist
         print("CamelRunning---TrainingGenesScaling......Finished")
         return datax
     elif learninggroup == "test":
@@ -838,8 +843,8 @@ def MVgene_Scaling(datax,score, commongene, mprotogruop,tftable,thrs,
         dfclpn = dfclpn.loc[:, bool1].copy()
         df_train_setclpn = dfclpn.loc[dfclpn.sum(1) > 0]
         df_train_setclpn = df_train_setclpn.reindex(sharedMVgenes).fillna(0)
-        datax.obsm["test_set_values"] =  df_train_setclpn.values.T
-        datax.uns["train_set_gene"] =  df_train_setclpn.index.values
+        datax.obsm["test_set_values"] = df_train_setclpn.values.T
+        datax.uns["train_set_gene"] = df_train_setclpn.index.values
         datax.uns["mclasses_names"] = classes_names
         datax.obs["mtrain_index"] = classes_index
         testgenelist = np.in1d(datax.var.index, sharedMVgenes)

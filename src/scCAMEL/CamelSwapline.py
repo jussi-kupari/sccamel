@@ -435,7 +435,7 @@ def EnrichScore_Ranksum(adata, foldchange=1, meanthreshold=0.05, pvalue=0.1):
     dfmk.columns = ["Gene", "Group", "Num"]
     return dfmk
 
-def ConsistantAssign(datax,dfsig,outputfilepath=None,outputPlot=True ):
+def ConsistantAssign(datax, dfsig, outputfilepath=None, outputPlot=True):
     """
     Inputs:
 
@@ -455,56 +455,59 @@ def ConsistantAssign(datax,dfsig,outputfilepath=None,outputPlot=True ):
     Optionally saves a file with cells that have inconsistent cluster assignment
     Optionally displays a bar plot showing the percentage of consistently assigned cells for each cluster
     """
-    dfprob=pd.DataFrame(datax.obsm['Celltype_Score'], index=datax.obs.index,columns=datax.uns['Celltype_Score_RefCellType'])
-    dfprob1=dfprob-dfsig.quantile(0.95)
-    dfprob1[dfprob1<0]=0
-    dfprob1neg=dfprob1.loc[dfprob1.sum(1)==0]
-    dfprob1posi=dfprob1.loc[dfprob1.sum(1)>0]
-    cluslist=[]
-    colname=dfprob1posi.columns
+    dfprob = pd.DataFrame(datax.obsm['Celltype_Score'], index=datax.obs.index, columns=datax.uns['Celltype_Score_RefCellType'])
+    dfprob1 = dfprob - dfsig.quantile(0.95)
+    dfprob1[dfprob1 < 0] = 0
+    dfprob1neg = dfprob1.loc[dfprob1.sum(1) == 0]
+    dfprob1posi = dfprob1.loc[dfprob1.sum(1) > 0]
+    cluslist = []
+    colname = dfprob1posi.columns
     for i in range(dfprob1posi.shape[0]):
-        temp=dfprob1posi.iloc[i,:]
+        temp = dfprob1posi.iloc[i, :]
         cluslist.append(colname[temp.tolist().index(max(temp))])
-    dfprob1posi["PredictCluster"]=cluslist
-    dfprob1neg["PredictCluster"]=["NoPrediction"]*dfprob1neg.shape[0]
-    dfprob1=dfprob1posi.append(dfprob1neg)
-    dfprob1=dfprob1.loc[datax.obs.index]
-    datax.obs["PredictCluster"]=dfprob1["PredictCluster"]
-    sumlist=[]
+    dfprob1posi["PredictCluster"] = cluslist
+    dfprob1neg["PredictCluster"] = ["NoPrediction"] * dfprob1neg.shape[0]
+    
+    # PATCHED: Replace .append() with pd.concat()
+    dfprob1 = pd.concat([dfprob1posi, dfprob1neg], axis=0)
+    
+    dfprob1 = dfprob1.loc[datax.obs.index]
+    datax.obs["PredictCluster"] = dfprob1["PredictCluster"]
+    sumlist = []
     for item in datax.obs.index:
-        if datax.obs.loc[item,"Cluster"]==datax.obs.loc[item,"PredictCluster"]:
+        if datax.obs.loc[item, "Cluster"] == datax.obs.loc[item, "PredictCluster"]:
             sumlist.append(1)
         else:
             sumlist.append(0)
-    datax.obs["ClusterConsistanceScore"]=sumlist
-    if outputfilepath!=None:
-        dfoutput=datax.obs.loc[datax.obs["ClusterConsistanceScore"]==0][["Cluster","PredictCluster"]].sort_values(["Cluster"])
-        dfoutput.to_csv(outputfilepath,sep="\t")
-    if outputPlot==True:
-        Percent0=datax.obs.groupby(["Cluster"])["ClusterConsistanceScore"].sum()/datax.obs.groupby(["Cluster"])["ClusterConsistanceScore"].count()
-        Percent75=1-Percent0
-        PercentDf=[Percent0,Percent75]
-        PercentSum=pd.DataFrame(PercentDf,index=["Consistent","Inconsistent"])*100
+    datax.obs["ClusterConsistanceScore"] = sumlist
+    if outputfilepath != None:
+        dfoutput = datax.obs.loc[datax.obs["ClusterConsistanceScore"] == 0][["Cluster", "PredictCluster"]].sort_values(["Cluster"])
+        dfoutput.to_csv(outputfilepath, sep="\t")
+    if outputPlot == True:
+        Percent0 = datax.obs.groupby(["Cluster"])["ClusterConsistanceScore"].sum() / datax.obs.groupby(["Cluster"])["ClusterConsistanceScore"].count()
+        Percent75 = 1 - Percent0
+        PercentDf = [Percent0, Percent75]
+        PercentSum = pd.DataFrame(PercentDf, index=["Consistent", "Inconsistent"]) * 100
 
-        plt.figure(figsize=(25,10))
+        plt.figure(figsize=(25, 10))
 
         cmap = plt.cm.bwr
-        percfig=PercentSum.T.plot.bar(stacked=True, legend=False, figsize=(20, 10),yticks = range(0,101,10),color=cmap(np.linspace(0, 1, 2)),alpha=0.95)
+        percfig = PercentSum.T.plot.bar(stacked=True, legend=False, figsize=(20, 10), yticks=range(0, 101, 10), color=cmap(np.linspace(0, 1, 2)), alpha=0.95)
         plt.xticks(rotation=90,
-                   #horizontalalignment='center',
-                   verticalalignment='top', position=(0,-0.05), fontsize=20)
-        plt.yticks(rotation=0, verticalalignment='top', position=(0,0), fontsize=20)
+                   # horizontalalignment='center',
+                   verticalalignment='top', position=(0, -0.05), fontsize=20)
+        plt.yticks(rotation=0, verticalalignment='top', position=(0, 0), fontsize=20)
         percfig.set_ylim(ymin=0, ymax=100)
-        #percfig.grid(False)
-        plt.ylabel('Percentage of consistently assigned cells (%)', fontsize=25, position=(0,0.5), color=(0.2,0.2,0.2), alpha=0.95)
-        plt.xlabel("",position=(0,-0.5), fontsize=15)
+        # percfig.grid(False)
+        plt.ylabel('Percentage of consistently assigned cells (%)', fontsize=25, position=(0, 0.5), color=(0.2, 0.2, 0.2), alpha=0.95)
+        plt.xlabel("", position=(0, -0.5), fontsize=15)
         percfig.spines.right.set_visible(False)
         percfig.spines.top.set_visible(False)
         recs2 = []
         for i in range(len(PercentSum.index.tolist())):
-            recs2.append(mpatches.Rectangle((0,0),1,1, alpha=0.95,edgecolor="Grey", fc=cmap(np.linspace(0, 1, 2))[i]))
+            recs2.append(mpatches.Rectangle((0, 0), 1, 1, alpha=0.95, edgecolor="Grey", fc=cmap(np.linspace(0, 1, 2))[i]))
 
-        percfig.legend(recs2,PercentSum.index.tolist(),loc=2,bbox_to_anchor=(1.01, 1.1), prop={'size':25})
+        percfig.legend(recs2, PercentSum.index.tolist(), loc=2, bbox_to_anchor=(1.01, 1.1), prop={'size': 25})
     return datax
 
 
@@ -1759,8 +1762,8 @@ def patch_violinplot():
         if isinstance(art, PolyCollection):
             art.set_edgecolor((0.6, 0.6, 0.6))
 
-def ProbMultiPlot( datax, mcolor_dict,fs=15):
 
+def ProbMultiPlot(datax, mcolor_dict, fs=15):
      """
         Input:
 
@@ -1781,6 +1784,9 @@ def ProbMultiPlot( datax, mcolor_dict,fs=15):
                   # mcolor_dict=refcolor_dict
      mcolor_dict=pd.Series(mcolor_dict)
      mcolor_dict = mcolor_dict.map(lambda x: list(map(lambda y: y / 255., x)))
+     # Convert to dictionary to avoid Series boolean ambiguity issues
+     mcolor_dict_dict = mcolor_dict.to_dict()
+     
      dfprobRef = pd.DataFrame(datax.obsm["Celltype_Score"], index=datax.obs.index,
                               columns=datax.uns["Celltype_Score_RefCellType"])
      dfpfcclus = datax.obs[["mtrain_index", "Cluster"]].T
@@ -1794,12 +1800,16 @@ def ProbMultiPlot( datax, mcolor_dict,fs=15):
      fig.set_size_inches(16, 8)
      sns.set_style("whitegrid")
 
+     # Use the dictionary version for the palette argument to avoid Series boolean issue
+     palette_values = {cell_type: mcolor_dict_dict[cell_type] for cell_type in mwanted_order}
      ax = sns.violinplot(y=dfprobRef.index.name, x=dfprobRef.columns.name, scale="width", bw=0.4, cut=2, gridsize=100,
-                         saturation=0.9, width=0.98, palette=mcolor_dict[mwanted_order], inner=None, data=dfprobRef)
+                         saturation=0.9, width=0.98, palette=palette_values, inner=None, data=dfprobRef)
      plt.setp(ax.collections, alpha=.8)
      for i in range(len(dfprobRef.columns)):
+         # Create a list of colors for the scatter plot points
+         scatter_colors = [mcolor_dict_dict[group] for group in mprotogruop]
          plt.scatter(list(np.random.random_sample(len(dfprobRef.index)) / 3 - 0.16 + i),
-                     dfprobRef.iloc[:, i].values.tolist(), c=np.array(list(mcolor_dict[mprotogruop].values)), alpha=0.9,
+                     dfprobRef.iloc[:, i].values.tolist(), c=scatter_colors, alpha=0.9,
                      edgecolors="grey", lw=0.3)
 
      # ax=sns.swarmplot(y=dftemp.index.name, x=dfprobRef.columns.name,size=5, edgecolor='gray', linewidth=0.1,palette=seleColor , data = dftemp)
@@ -1827,7 +1837,7 @@ def ProbMultiPlot( datax, mcolor_dict,fs=15):
 
      recs = []
      for item in mwanted_order:
-         recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=mcolor_dict[item]))
+         recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=mcolor_dict_dict[item]))
      ax.legend(recs, mwanted_order, loc=2, bbox_to_anchor=(1.05, 1.05), prop={'size': fs})
      # plt.savefig("GBMDGTFgenes_mDG_vs_PEgbm_wheel%sPlot.png"%cvalue,bbox_inches='tight')
      return fig
@@ -2390,9 +2400,13 @@ def enrichmentscoreBETA(dfpfcclus, df_dev, fc=3, pvalcutoff=0.1, shortcut=True):
         df_avgpos = df_avgpos.fillna(0.0)
         score00 = df_fold
         score10 = df_fold.multiply(df_avgpos, axis=0)
-        ix00 = np.argsort(score00, 0)
-        # ix05 = np.argsort( score05 , 0)
-        ix10 = np.argsort(score10, 0)
+
+        # FIX: Convert NumPy arrays to pandas DataFrames after sorting
+        ix00_np = np.argsort(score00, 0)
+        ix10_np = np.argsort(score10, 0)
+        ix00 = pd.DataFrame(ix00_np, index=score00.index, columns=score00.columns)
+        ix10 = pd.DataFrame(ix10_np, index=score10.index, columns=score10.columns)
+
         markers = defaultdict(set)
         N = int(len(df_fold.index) / len(df_fold.columns) * 3)
         N= min(len(df_fold.index), N)
@@ -2479,8 +2493,12 @@ def enrichmentscoreBETA(dfpfcclus, df_dev, fc=3, pvalcutoff=0.1, shortcut=True):
         score10 = df_fold.multiply(df_avgpos, axis=0)
         print("Camel...Running: clusteringValue2...")
 
-        ix00 = np.argsort(score00, 0)
-        ix10 = np.argsort(score10, 0)
+        # FIX: Convert NumPy arrays to pandas DataFrames after sorting
+        ix00_np = np.argsort(score00, 0)
+        ix10_np = np.argsort(score10, 0)
+        ix00 = pd.DataFrame(ix00_np, index=score00.index, columns=score00.columns)
+        ix10 = pd.DataFrame(ix10_np, index=score10.index, columns=score10.columns)
+        
         markers = defaultdict(set)
         N = int(len(df_fold.index) / len(df_fold.columns) * 3)
         N = min(len(df_fold.index), N)

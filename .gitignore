@@ -2,3 +2,7 @@
 build
 datasets
 env
+mouse-cell-cycle-genes.txt
+allTFs_mm.txt
+*.h5ad
+*.csv
