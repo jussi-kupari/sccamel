@@ -1,4 +1,5 @@
 *.ipynb
+*.qmd
 build
 datasets
 env

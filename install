@@ -5,6 +5,7 @@ git clone --branch dev https://github.com/jussi-kupari/sccamel
 
 Then run the following lines one-by-one in the terminal:
 
+cd sccamel
 micromamba create --prefix ./env
 micromamba activate ./env
 micromamba install python=3.8 pip ipykernel entrypoints
